@@ -1,13 +1,5 @@
 import { useState, useEffect } from 'react'
 
-const createUser = (name, email, password) => ({
-  id: Date.now().toString(),
-  name,
-  email,
-  password,
-  createdAt: new Date().toISOString()
-})
-
 export const useAuth = () => {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -25,22 +17,22 @@ export const useAuth = () => {
     setIsLoading(false)
   }, [])
 
-  const register = (name, email, password) => {
+  const register = async (name, email, password) => {
     try {
-      const existingUsers = JSON.parse(localStorage.getItem('auth_users') || '[]')
-      const userExists = existingUsers.find(u => u.email === email)
       
-      if (userExists) {
-        throw new Error('Usuário já existe com este email')
-      }
+      const response = await fetch("http://localhost:3000/auth/register",{
+        method: "POST",
+        headers: {
+          "Content-type": "application/json"
+        },
+        body: JSON.stringify({
+          name, email, password
+        })
+      })
 
-      const newUser = createUser(name, email, password)
-      
-      existingUsers.push(newUser)
-      localStorage.setItem('auth_users', JSON.stringify(existingUsers))
-      
-      setUser(newUser)
-      localStorage.setItem('auth_user', JSON.stringify(newUser))
+      if (!response.ok) {
+        throw new Error("HTTP Error:" + response.status)
+      }
       
       return { success: true, user: newUser }
     } catch (error) {
@@ -48,17 +40,28 @@ export const useAuth = () => {
     }
   }
 
-  const login = (email, password) => {
+  const login = async (email, password) => {
     try {
-      const users = JSON.parse(localStorage.getItem('auth_users') || '[]')
-      const user = users.find(u => u.email === email && u.password === password)
-      
-      if (!user) {
-        throw new Error('Email ou senha incorretos')
+
+      const response = await fetch("http://localhost:3000/auth/login",{
+        method: "POST",
+        headers: {
+          "Content-type": "application/json"
+        },
+        body: JSON.stringify({
+          email, password
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error("HTTP Error:" + response.status)
       }
 
-      setUser(user)
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      const data = await response.json()
+
+      setUser(data.user)
+      localStorage.setItem('auth_user', JSON.stringify(data.user))
+      localStorage.setItem('access_token', JSON.stringify(data.access_token))
       
       return { success: true, user }
     } catch (error) {
@@ -69,6 +72,7 @@ export const useAuth = () => {
   const logout = () => {
     setUser(null)
     localStorage.removeItem('auth_user')
+      localStorage.removeItem('access_token')
   }
 
   const isAuthenticated = !!user
