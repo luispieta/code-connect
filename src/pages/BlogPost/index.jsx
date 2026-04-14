@@ -4,25 +4,33 @@ import { Author } from "../../components/Author"
 import Typography from "../../components/Typography"
 import { CommentList } from "../../components/CommentList"
 import ReactMarkdown from 'react-markdown'
-import { useNavigate, useParams } from "react-router"
+import { UNSAFE_ErrorResponseImpl, useNavigate, useParams } from "react-router"
 import { useEffect, useState } from "react"
 import { ModalComment } from "../../components/ModalComment"
+import { http } from '../../api'
 
 export const BlogPost = () => {
 
     const { slug } = useParams()
     const navigate = useNavigate()
     const [post, setPost] = useState(null)
+    const[comments, setComments] = useState()
+
+    const handleNewComments = (comment) => {
+        setComments([comment, ...comments])
+    }
 
     useEffect(() => {
-        fetch(`http://localhost:3000/blog-posts/slug/${slug}`)
+        http.get(`blog-posts/slug/${slug}`)
             .then(response => {
-                if (response.status == 404) {
+                setPost(response.data)
+                setComments(response.data.comments)
+            })
+            .catch(error => {
+                if(error.status == 404) {
                     navigate("/not-found")
                 }
-                return response.json()
             })
-            .then(data => setPost(data))
     }, [slug, navigate])
 
     if (!post) {
@@ -53,9 +61,9 @@ export const BlogPost = () => {
                             </p>
                         </div>
                         <div className={styles.action}>
-                            <ModalComment />
+                            <ModalComment onSuccess={handleNewComments} postId={post?.id} />
                             <p>
-                                {post.comments.length}
+                                {comments.length}
                             </p>
                         </div>
                     </div>
@@ -68,7 +76,7 @@ export const BlogPost = () => {
                     {post.markdown}
                 </ReactMarkdown>
             </div>
-            <CommentList comments={post.comments} />
+            <CommentList comments={comments} />
         </main>
     )
 }
